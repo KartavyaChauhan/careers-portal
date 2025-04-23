@@ -1,0 +1,76 @@
+name: CareerPortal CI/CD
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [16.x, 18.x]
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    # Frontend Build
+    - name: Install Frontend Dependencies
+      working-directory: ./careers-portal-frontend
+      run: npm ci
+
+    - name: Build Frontend
+      working-directory: ./careers-portal-frontend
+      run: npm run build
+
+    - name: Test Frontend
+      working-directory: ./careers-portal-frontend
+      run: npm test || true
+
+    # Backend Build
+    - name: Install Backend Dependencies
+      working-directory: ./careers-portal-backend
+      run: npm ci
+
+    - name: Test Backend
+      working-directory: ./careers-portal-backend
+      run: npm test || true
+
+    # Store build artifacts
+    - name: Upload Frontend Build
+      uses: actions/upload-artifact@v3
+      with:
+        name: frontend-build
+        path: careers-portal-frontend/build/
+
+  deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Download Frontend Build
+      uses: actions/download-artifact@v3
+      with:
+        name: frontend-build
+        path: careers-portal-frontend/build/
+
+    # Add deployment steps here based on your hosting platform
+    # Example for Heroku:
+    # - name: Deploy to Heroku
+    #   uses: akhileshns/heroku-deploy@v3.12.12
+    #   with:
+    #     heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+    #     heroku_app_name: "your-app-name"
+    #     heroku_email: "your-email@example.com" 
